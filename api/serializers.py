@@ -1,22 +1,15 @@
 from rest_framework import serializers
 from .models import *
-from django.contrib.auth import get_user_model
 from . mail import send_otp_email
 import random
-from django.contrib.auth import authenticate
 import re
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.contrib.sites.shortcuts import get_current_site
-from ocs.settings import EMAIL_HOST_USER
 from django.utils.encoding import force_str, force_bytes
-from rest_framework.response import Response
-from rest_framework import status
-
+from ocs.settings import EMAIL_HOST_USER
 
 class UserSerializer(serializers.ModelSerializer):
     # confirm_password = serializers.CharField(write_only=True)

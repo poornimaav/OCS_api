@@ -12,8 +12,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,12 +24,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z@bdb+-61&q&-^@3b5k)z^!18y29rxvby3h2tnu9#d%(c$pqa4'
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', False) == 'True'
 
-ALLOWED_HOSTS = ['pet-adoption.local', '127.0.0.1', 'localhost']
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
 
 
 # Application definition
@@ -46,6 +49,8 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
     'drf_yasg',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',   # Add this for custom token blacklist
+    
 ]
 
 SWAGGER_SETTINGS = {
@@ -96,7 +101,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME' : 'ocs',
         'USER' : 'postgres',
-        'PASSWORD' : 'Poornima@890',
+        'PASSWORD' : os.environ.get('DATABASE_PASSWORD'),
         'HOST' : 'localhost'
     }
 }
@@ -149,12 +154,12 @@ EMAIL_HOST = 'smtp.gmail.com'  # Specify the SMTP host for your email provider
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587  # Specify the SMTP port for your email provider
 EMAIL_HOST_USER = 'poornimapmdf@gmail.com'  # Update with your email address
-EMAIL_HOST_PASSWORD = 'utecuftpqxcnvuld'  # Update with your email password
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # Update with your email password
 
 
 PAYPAL_MODE = 'sandbox'
-PAYPAL_CLIENT_ID = 'ARZi17R-HSt8WArVynkjalWiraU2s3RgvsORrV3AcuBuznNXI5kUPaSuFmPY-2eKRLhVguAy7i2V1Zj_'
-PAYPAL_CLIENT_SECRET = 'EKMMZ8izM1-uY-6pSrQD6k2874axwJvonO_L9TS4My4o6gf5rOGwPrJRsQqGAeYKM3gfZXErUJTyJznM'
+PAYPAL_CLIENT_ID =os.environ.get('PAYPAL_CLIENT_ID')
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET')
 
 
 REST_FRAMEWORK = {
@@ -174,13 +179,14 @@ REST_FRAMEWORK = {
 
 
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:8000',
 ]
 
-PAYPAL_API_ACCESS_TOKEN= "A21AAIq7-0ornMgjniTUeaf2Gf27LbJaXcSyMpyCpEoMy5IJ2Rh7wXEbIhSbkllHTEWT6sTjuBBg2v19KwIdjO02KpPkZHb5A"
+# PAYPAL_API_ACCESS_TOKEN ='A21AALff--slZxY-yIQ-vJJaWxzmfq2BiN_mdloNzdIRSbFjmpBscEDkqhy4o77Mrjk7chNeBanpkHvusw5pvckvmxS8jycnw'
+PAYPAL_API_ACCESS_TOKEN = os.environ.get('PAYPAL_ACCESS_TOKEN')
 PAYPAL_API_CREATE_PAYMENT_URL = 'https://api.sandbox.paypal.com/v1/payments/payment/'
 
 
@@ -191,7 +197,7 @@ AUTHENTICATION_BACKENDS = [
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Adjust the token lifetime as needed
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Adjust the token lifetime as needed
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
     'SLIDING_TOKEN_LIFETIME': timedelta(days=7),
     'SLIDING_TOKEN_REFRESH_LIFETIME_GRACE_PERIOD': timedelta(days=1),

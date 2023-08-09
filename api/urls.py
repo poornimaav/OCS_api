@@ -1,19 +1,14 @@
 from django.urls import path, include, re_path
 from . import views
 from .views import *
-from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-
-
-# router = DefaultRouter()
-# router.register(r'courses', CourseListView, basename='course-list')
 
 urlpatterns = [
 
 
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     
     path('api-auth/', include('rest_framework.urls')),
@@ -59,11 +54,11 @@ urlpatterns = [
     path('payment/', CreatePaypalPaymentView.as_view(), name=' paypal payment'),
     path('payment/success/', PaypalSuccessView.as_view(), name='payment-success'),
     path('payment/cancel/', PaypalCancelView.as_view(), name='payment-failure'),
-    # path('payment/', CreatePaypalPaymentView.as_view(), name='create_paypal_payment'),
-
+    
     #password-reset
     path('forget-password/', ForgetPasswordView.as_view(), name='forget_password'),
     path('reset-password/<uidb64>/<token>/', ResetPasswordView.as_view(), name='reset_password'),
 
     path('purchased-students/', views.PurchasedStudentsListView.as_view(), name='purchased_students_list'),
+  
 ]

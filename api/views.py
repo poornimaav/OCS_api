@@ -1,56 +1,35 @@
-from django.shortcuts import render
 from django.conf import settings
-# Create your views here.
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
 from .serializers import *
 from .models import *
-from rest_framework import generics
-from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from django.contrib.auth import authenticate
+from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_decode
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
-from rest_framework import viewsets
-from rest_framework.filters import SearchFilter
-from django.contrib.auth import authenticate, login, logout
-from django.urls import reverse
-from paypalrestsdk import Payment, configure
-import uuid
-from ocs.settings import EMAIL_HOST_USER
 from .mail import *
 from .permissions import *
-from rest_framework.permissions import IsAuthenticated
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from rest_framework.exceptions import PermissionDenied
 import json
 import base64
 import environ
 import requests
 import paypalrestsdk
-from django.urls import get_resolver
-from django.http import HttpResponse
-from django.http import JsonResponse
-from django.urls.resolvers import URLPattern, URLResolver
-from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.utils.http import urlsafe_base64_decode
-# from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework.authentication import TokenAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import AllowAny
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
+from paypalrestsdk import Payment, configure
+
 
 paypalrestsdk.configure({
-    "mode": "sandbox",  # Use "live" for production
+    "mode": "sandbox", 
     "client_id": settings.PAYPAL_CLIENT_ID,
     "client_secret": settings.PAYPAL_CLIENT_SECRET,
 })
 
-
-# Create your views here.
 
 # teacher registration
 class TeacherRegisterAPIView(generics.CreateAPIView):
@@ -119,10 +98,6 @@ class OTPVerificationAPIView(generics.GenericAPIView):
         if not otp:
             return Response({"message": "OTP not found. Please register again.", "status":status.HTTP_400_BAD_REQUEST})
         
-        if not email or not otp:
-            return Response({"message": "Please provide both email and otp to verify.",
-                            "status":status.HTTP_400_BAD_REQUEST})
-
         if otp == validated_data['otp']:
             # Mark the user as verified
             user = User.objects.get(email=validated_data['email'])
@@ -159,7 +134,8 @@ class LoginView(generics.CreateAPIView):
         if user is not None:
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-    
+            refresh_token = str(refresh)
+            # print(access_token.payload)
             if user.is_teacher:
                 message = "Login successful as teacher."
             
@@ -172,6 +148,7 @@ class LoginView(generics.CreateAPIView):
                 "message": message,
                 "data": {
                     "access_token": access_token,
+                    "refresh_token": refresh_token,
                 },
              "status":status.HTTP_200_OK })
         
@@ -180,22 +157,21 @@ class LoginView(generics.CreateAPIView):
                 "message": "Invalid email or password. Please try again.",
              "status":status.HTTP_400_BAD_REQUEST})
         
-
-# class LogoutView(APIView):
-#     def post(self, request):
-#         # Clear the user's session and log them out
-#         logout(request)
-#         return Response({"message": "Logout successful."}, status=status.HTTP_200_OK)
-
 #logout
 class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         try:
-            # Logout the user by clearing the session
-            logout(request)
-            return Response({"message": "Logout successful."}, status=status.HTTP_200_OK)
+            refresh_token = request.data.get('refresh_token')
+            if not refresh_token:
+                return Response({'message': 'Missing refresh_token', "status":status.HTTP_400_BAD_REQUEST})
+
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({'message': 'Logout successful', "status":status.HTTP_200_OK})
         except Exception as e:
-            return Response({"message": "Logout failed.", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Invalid refresh_token',"error": str(e), "status":status.HTTP_400_BAD_REQUEST})
 
 
 # Teacher list
@@ -288,7 +264,7 @@ class CourseDetailView(generics.RetrieveAPIView):
         context = super().get_serializer_context()
         context['course_id'] = self.kwargs.get('pk')
         return context
-
+        
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -491,13 +467,6 @@ class ContentDeleteView(generics.DestroyAPIView):
         except Exception as e:
             return Response({"message":"something went wrong", "error": str(e), "status": status.HTTP_500_INTERNAL_SERVER_ERROR})
 
-#course search
-# class CourseSearchView(generics.ListAPIView):
-#     queryset = Course.objects.all()
-#     serializer_class = CourseSerializer
-#     filter_backends = [SearchFilter]
-#     search_fields = ['title', 'description']  # Define the fields to search on
-
 
 #course search
 class CourseSearchView(APIView):
@@ -614,8 +583,8 @@ class CreatePaypalPaymentView(APIView):
             response = requests.post(settings.PAYPAL_API_CREATE_PAYMENT_URL, json=data, headers=headers)
             response_data = response.json()
             # print(response_data)
-            # transaction_id = response_data.get('id')
-            # print(transaction_id)
+            transaction_id = response_data.get('id')
+            print(transaction_id)
             # Save the order details in your database
             purchase = Purchase.objects.create(
                 course=course,
@@ -720,3 +689,4 @@ class PurchasedStudentsListView(APIView):
         serializer = PurchaseSerializer(purchases, many=True)
 
         return Response({"message": "List of purchased students", "data": serializer.data, "status": status.HTTP_200_OK})
+
